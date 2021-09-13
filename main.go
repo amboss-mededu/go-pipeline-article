@@ -1,13 +1,13 @@
 package main
 
 import (
+  "errors"
 	"context"
-	"errors"
 	"log"
-	"runtime"
 	"strings"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
 func producer(ctx context.Context, strings []string) (<-chan string, error) {
@@ -28,64 +28,16 @@ func producer(ctx context.Context, strings []string) (<-chan string, error) {
 	return outChannel, nil
 }
 
-func transformToLower(ctx context.Context, values <-chan string) (<-chan string, <-chan error, error) {
-	outChannel := make(chan string)
-	errorChannel := make(chan error)
-
-	go func() {
-		defer close(outChannel)
-		defer close(errorChannel)
-
-		for s := range values {
-			time.Sleep(time.Second * 3)
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				outChannel <- strings.ToLower(s)
-			}
-		}
-	}()
-
-	return outChannel, errorChannel, nil
-}
-
-func transformToTitle(ctx context.Context, values <-chan string) (<-chan string, <-chan error, error) {
-	outChannel := make(chan string)
-	errorChannel := make(chan error)
-
-	go func() {
-		defer close(outChannel)
-		defer close(errorChannel)
-
-		for s := range values {
-			time.Sleep(time.Second * 3)
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if s == "foo" {
-					errorChannel <- errors.New("error in transformToTitle")
-				} else {
-					outChannel <- strings.ToTitle(s)
-				}
-			}
-		}
-	}()
-
-	return outChannel, errorChannel, nil
-}
-
-func sink(ctx context.Context, cancel context.CancelFunc,values <-chan string, errors <-chan error) {
+func sink(ctx context.Context, cancelFunc context.CancelFunc, values <-chan string, errors <-chan error) {
 	for {
 		select {
 		case <-ctx.Done():
 			log.Print(ctx.Err().Error())
 			return
-		case err, ok := <-errors:
-			if ok {
-       cancel()
-				log.Print(err.Error())
+		case err := <-errors:
+			if err != nil {
+				log.Println("error: ", err.Error())
+				cancelFunc()
 			}
 		case val, ok := <-values:
 			if ok {
@@ -98,70 +50,84 @@ func sink(ctx context.Context, cancel context.CancelFunc,values <-chan string, e
 	}
 }
 
+func step[In any,Out any](
+  ctx context.Context,
+  inputChannel <-chan In,
+  outputChannel chan Out,
+  errorChannel chan error,
+  fn func(In) (Out, error),
+) {
+	defer close(outputChannel)
+
+	limit := runtime.NumCPU()
+	sem1 := semaphore.NewWeighted(limit)
+
+	for s := range inputChannel {
+		select {
+		case <-ctx.Done():
+			log.Print("1 abort")
+			break
+		default:
+		}
+
+		if err := sem1.Acquire(ctx, 1); err != nil {
+			log.Printf("Failed to acquire semaphore: %v", err)
+			break
+		}
+
+		go func(s In) {
+			defer sem1.Release(1)
+			time.Sleep(time.Second * 3)
+
+			result, err := fn(s)
+			if err != nil {
+				errorChannel <- err
+			} else {
+				outputChannel <- result
+			}
+		}(s)
+	}
+
+	if err := sem1.Acquire(ctx, 8); err != nil {
+		log.Printf("Failed to acquire semaphore: %v", err)
+	}
+}
+
 func main() {
 	source := []string{"FOO", "BAR", "BAX"}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	outputChannel, err := producer(ctx, source)
+	readStream, err := producer(ctx, source)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	stage1Channels := []<-chan string{}
-	errors := []<-chan error{}
+	stage1 := make(chan string)
+	errorChannel := make(chan error)
 
-	for i := 0; i < runtime.NumCPU(); i++ {
-		lowerCaseChannel, lowerCaseErrors, err := transformToLower(ctx, outputChannel)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stage1Channels = append(stage1Channels, lowerCaseChannel)
-		errors = append(errors, lowerCaseErrors)
-	}
-
-	stage1Merged := mergeChans(ctx, stage1Channels...)
-	stage2Channels := []<-chan string{}
-
-	for i := 0; i < runtime.NumCPU(); i++ {
-		titleCaseChannel, titleCaseErrors, err := transformToTitle(ctx, stage1Merged)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stage2Channels = append(stage2Channels, titleCaseChannel)
-		errors = append(errors, titleCaseErrors)
-	}
-
-	stage2Merged := mergeChans(ctx, stage2Channels...)
-	errorsMerged := mergeChans(ctx, errors...)
-	sink(ctx, cancel, stage2Merged, errorsMerged)
-}
-
-func mergeChans[T any](ctx context.Context, cs ...<-chan T) <-chan T {
-	var wg sync.WaitGroup
-	out := make(chan T)
-
-	output := func(c <-chan T) {
-		defer wg.Done()
-		for n := range c {
-			select {
-			case out <- n:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}
-
-	wg.Add(len(cs))
-	for _, c := range cs {
-		go output(c)
+	transformA := func(s string) (string, error) {
+		return strings.ToLower(s), nil
 	}
 
 	go func() {
-		wg.Wait()
-		close(out)
+		step(ctx, readStream, stage1, errorChannel, transformA)
 	}()
 
-	return out
+	stage2 := make(chan string)
+
+	transformB := func(s string) (string, error) {
+		if s == "foo" {
+			return "", errors.New("oh no")
+		}
+
+		return strings.Title(s), nil
+	}
+
+	go func() {
+		step(ctx, stage1, stage2, errorChannel, transformB)
+	}()
+
+	sink(ctx, cancel, stage2, errorChannel)
 }
