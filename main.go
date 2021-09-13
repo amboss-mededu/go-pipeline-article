@@ -88,7 +88,7 @@ func step[In any,Out any](
 		}(s)
 	}
 
-	if err := sem1.Acquire(ctx, 8); err != nil {
+	if err := sem1.Acquire(ctx, limit); err != nil {
 		log.Printf("Failed to acquire semaphore: %v", err)
 	}
 }
