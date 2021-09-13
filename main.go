@@ -32,6 +32,7 @@ func sink(ctx context.Context, values <-chan string) {
 			log.Print(ctx.Err().Error())
 			return
 		case val, ok := <-values:
+			log.Print(val)
 			if ok {
 				log.Printf("sink: %s", val)
 			} else {
@@ -48,10 +49,10 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() {
-		time.Sleep(time.Second * 5)
-		cancel()
-	}()
+	// go func() {
+	// 	time.Sleep(time.Second * 5)
+	// 	cancel()
+	// }()
 
 	outputChannel, err := producer(ctx, source)
 	if err != nil {
