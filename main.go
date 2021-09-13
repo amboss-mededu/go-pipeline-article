@@ -7,9 +7,12 @@ import (
 func producer(strings []string) (<-chan string, error) {
 	outChannel := make(chan string)
 
-	for _, s := range strings {
-		outChannel <- s
-	}
+	go func() {
+
+		for _, s := range strings {
+			outChannel <- s
+		}
+	}()
 
 	return outChannel, nil
 }
