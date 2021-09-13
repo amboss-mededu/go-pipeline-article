@@ -8,7 +8,7 @@ func producer(strings []string) (<-chan string, error) {
 	outChannel := make(chan string)
 
 	go func() {
-
+		defer close(outChannel)
 		for _, s := range strings {
 			outChannel <- s
 		}
