@@ -1,0 +1,13 @@
+diff --git a/main.go b/main.go
+index 5c20c9f..638af00 100644
+--- a/main.go
++++ b/main.go
+@@ -8,7 +8,7 @@ func producer(strings []string) (<-chan string, error) {
+ 	outChannel := make(chan string)
+ 
+ 	go func() {
+-
++		defer close(outChannel)
+ 		for _, s := range strings {
+ 			outChannel <- s
+ 		}

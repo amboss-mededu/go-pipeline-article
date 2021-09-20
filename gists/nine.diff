@@ -1,0 +1,63 @@
+diff --git a/main.go b/main.go
+index b850a16..6745855 100644
+--- a/main.go
++++ b/main.go
+@@ -121,7 +121,7 @@ func main() {
+ 		errors = append(errors, lowerCaseErrors)
+ 	}
+ 
+-	stage1Merged := mergeStringChans(ctx, stage1Channels...)
++	stage1Merged := mergeChans(ctx, stage1Channels...)
+ 	stage2Channels := []<-chan string{}
+ 
+ 	for i := 0; i < runtime.NumCPU(); i++ {
+@@ -133,44 +133,16 @@ func main() {
+ 		errors = append(errors, titleCaseErrors)
+ 	}
+ 
+-	stage2Merged := mergeStringChans(ctx, stage2Channels...)
+-	errorsMerged := mergeErrorChans(ctx, errors...)
++	stage2Merged := mergeChans(ctx, stage2Channels...)
++	errorsMerged := mergeChans(ctx, errors...)
+ 	sink(ctx, cancel, stage2Merged, errorsMerged)
+ }
+ 
+-func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
++func mergeChans[T any](ctx context.Context, cs ...<-chan T) <-chan T {
+ 	var wg sync.WaitGroup
+-	out := make(chan string)
++	out := make(chan T)
+ 
+-	output := func(c <-chan string) {
+-		defer wg.Done()
+-		for n := range c {
+-			select {
+-			case out <- n:
+-			case <-ctx.Done():
+-				return
+-			}
+-		}
+-	}
+-
+-	wg.Add(len(cs))
+-	for _, c := range cs {
+-		go output(c)
+-	}
+-
+-	go func() {
+-		wg.Wait()
+-		close(out)
+-	}()
+-
+-	return out
+-}
+-
+-func mergeErrorChans(ctx context.Context, cs ...<-chan error) <-chan error {
+-	var wg sync.WaitGroup
+-	out := make(chan error)
+-
+-	output := func(c <-chan error) {
++	output := func(c <-chan T) {
+ 		defer wg.Done()
+ 		for n := range c {
+ 			select {

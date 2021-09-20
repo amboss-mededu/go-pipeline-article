@@ -1,0 +1,27 @@
+diff --git a/main.go b/main.go
+index ca2f108..1e32bee 100644
+--- a/main.go
++++ b/main.go
+@@ -33,6 +33,7 @@ func sink(ctx context.Context, values <-chan string) {
+ 			log.Print(ctx.Err().Error())
+ 			return
+ 		case val, ok := <-values:
++			log.Print(val)
+ 			if ok {
+ 				log.Println(val)
+ 			}
+@@ -46,10 +47,10 @@ func main() {
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 
+-	go func() {
+-		time.Sleep(time.Second * 5)
+-		cancel()
+-	}()
++	// go func() {
++	// 	time.Sleep(time.Second * 5)
++	// 	cancel()
++	// }()
+ 
+ 	outputChannel, err := producer(ctx, source)
+ 	if err != nil {
