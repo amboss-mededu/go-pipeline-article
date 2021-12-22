@@ -2,38 +2,26 @@
   "nodes": {
     "flake-utils": {
       "locked": {
-        "lastModified": 1629481132,
-        "narHash": "sha256-JHgasjPR0/J1J3DRm4KxM4zTyAj4IOJY8vIl75v/kPI=",
+        "lastModified": 1638122382,
+        "narHash": "sha256-sQzZzAbvKEqN9s0bzWuYmRaA03v40gaJ4+iL1LXjaeI=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "997f7efcb746a9c140ce1f13c72263189225f482",
+        "rev": "74f7e4319258e287b0f9cb95426c9853b282730b",
         "type": "github"
       },
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
         "type": "github"
-      }
-    },
-    "golang": {
-      "flake": false,
-      "locked": {
-        "narHash": "sha256-EL6eQ80p+BH6WcqQoWxpKOiqwtRml0YlMrXZn2iY6Xs=",
-        "type": "tarball",
-        "url": "https://dl.google.com/go/go1.17.src.tar.gz"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://dl.google.com/go/go1.17.src.tar.gz"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1630500761,
-        "narHash": "sha256-xjEjZro342lUPd5Z/fFwdAX1dMXXZ3tvPGqMpqs0U20=",
+        "lastModified": 1640090545,
+        "narHash": "sha256-6qiF46uBGoSQmjDTFl8ilT+d1DuK39IRHlj0jE5gqZE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "6cc260cfd60f094500b79e279069b499806bf6d8",
+        "rev": "1dd151f0c0c216f416e9553af08f724a2499c795",
         "type": "github"
       },
       "original": {
@@ -46,7 +34,6 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "golang": "golang",
         "nixpkgs": "nixpkgs"
       }
     }
