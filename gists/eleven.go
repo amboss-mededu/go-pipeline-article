@@ -1,41 +1,50 @@
 func step[In any, Out any](
 	ctx context.Context,
 	inputChannel <-chan In,
-	outputChannel chan Out,
-	errorChannel chan error,
 	fn func(In) (Out, error),
-) {
-	defer close(outputChannel)
+) (chan Out, chan error) {
+	outputChannel := make(chan Out)
+	errorChannel := make(chan error)
 
-	sem1 := semaphore.NewWeighted(8)
+	limit := int64(2)
+	// Use all CPU cores to maximize efficiency. We'll set the limit to 2 so you
+	// can see the values being processed in batches of 2 at a time, in parallel
+	// limit := int64(runtime.NumCPU())
+	sem1 := semaphore.NewWeighted(limit)
 
-	for s := range inputChannel {
-		select {
-		case <-ctx.Done():
-			log.Print("1 abort")
-			break
-		default:
-		}
+	go func() {
+		defer close(outputChannel)
+		defer close(errorChannel)
 
-		if err := sem1.Acquire(ctx, 1); err != nil {
-			log.Printf("Failed to acquire semaphore: %v", err)
-			break
-		}
-
-		go func(s In) {
-			defer sem1.Release(1)
-			time.Sleep(time.Second * 3)
-
-			result, err := fn(s)
-			if err != nil {
-				errorChannel <- err
-			} else {
-				outputChannel <- result
+		for s := range inputChannel {
+			select {
+			case <-ctx.Done():
+				break
+			default:
 			}
-		}(s)
-	}
 
-	if err := sem1.Acquire(ctx, 8); err != nil {
-		log.Printf("Failed to acquire semaphore: %v", err)
-	}
+			if err := sem1.Acquire(ctx, 1); err != nil {
+				log.Printf("Failed to acquire semaphore: %v", err)
+				break
+			}
+
+			go func(s In) {
+				defer sem1.Release(1)
+				time.Sleep(time.Second * 3)
+
+				result, err := fn(s)
+				if err != nil {
+					errorChannel <- err
+				} else {
+					outputChannel <- result
+				}
+			}(s)
+		}
+
+		if err := sem1.Acquire(ctx, limit); err != nil {
+			log.Printf("Failed to acquire semaphore: %v", err)
+		}
+	}()
+
+	return outputChannel, errorChannel
 }

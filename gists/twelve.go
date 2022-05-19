@@ -9,30 +9,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stage1 := make(chan string)
-	errorChannel := make(chan error)
+	step1results, step1errors := step(ctx, readStream, transformA)
+	step2results, step2errors := step(ctx, step1results, transformB)
+	allErrors := Merge(ctx, step1errors, step2errors)
 
-	transformA := func(s string) (string, error) {
-		return strings.ToLower(s), nil
-	}
-
-	go func() {
-		step(ctx, readStream, stage1, errorChannel, transformA)
-	}()
-
-	stage2 := make(chan string)
-
-	transformB := func(s string) (string, error) {
-		if s == "foo" {
-			return "", errors.New("oh no")
-		}
-
-		return strings.Title(s), nil
-	}
-
-	go func() {
-		step(ctx, stage1, stage2, errorChannel, transformB)
-	}()
-
-	sink(ctx, cancel, stage2, errorChannel)
+	sink(ctx, cancel, step2results, allErrors)
 }
