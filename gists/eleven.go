@@ -1,9 +1,9 @@
-func step[In any,Out any](
-  ctx context.Context,
-  inputChannel <-chan In,
-  outputChannel chan Out,
-  errorChannel chan error,
-  fn func(In) (Out, error),
+func step[In any, Out any](
+	ctx context.Context,
+	inputChannel <-chan In,
+	outputChannel chan Out,
+	errorChannel chan error,
+	fn func(In) (Out, error),
 ) {
 	defer close(outputChannel)
 
@@ -26,12 +26,12 @@ func step[In any,Out any](
 			defer sem1.Release(1)
 			time.Sleep(time.Second * 3)
 
-      result, err := fn(s)
-      if err != nil {
-        errorChannel <- err
-      } else {
-        outputChannel <- result
-      }
+			result, err := fn(s)
+			if err != nil {
+				errorChannel <- err
+			} else {
+				outputChannel <- result
+			}
 		}(s)
 	}
 

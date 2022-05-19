@@ -71,7 +71,7 @@ index 33a1a3b..812956c 100644
  			return
 +		case err, ok := <-errors:
 +			if ok {
-+       cancel()
++				cancel()
 +				log.Print(err.Error())
 +			}
  		case val, ok := <-values:
