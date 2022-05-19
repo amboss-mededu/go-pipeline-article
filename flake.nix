@@ -13,7 +13,7 @@
       {
         devShell = pkgs.mkShell {
           buildInputs = [
-            pkgs.go_1_17
+            pkgs.go_1_18
             pkgs.gotools
             pkgs.golangci-lint
             pkgs.gopls
