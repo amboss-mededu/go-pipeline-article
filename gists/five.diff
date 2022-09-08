@@ -1,23 +1,14 @@
-From 097b13be34aecab2e48874ee30ddc6fde56ba6cb Mon Sep 17 00:00:00 2001
-From: Florian Beeres <yuuki@protonmail.com>
-Date: Mon, 13 Sep 2021 12:31:06 +0200
-Subject: [PATCH] Add context cancellation
-
----
- main.go | 41 ++++++++++++++++++++++++++++++++++-------
- 1 file changed, 34 insertions(+), 7 deletions(-)
-
 diff --git a/main.go b/main.go
-index 638af00..09b28a5 100644
+index 606c863..08d7580 100644
 --- a/main.go
 +++ b/main.go
-@@ -1,35 +1,62 @@
+@@ -1,37 +1,58 @@
  package main
  
  import (
 +	"context"
  	"log"
-+	"time"
+ 	"time"
  )
  
 -func producer(strings []string) (<-chan string, error) {
@@ -26,10 +17,9 @@ index 638af00..09b28a5 100644
  
  	go func() {
  		defer close(outChannel)
-+
  		for _, s := range strings {
+ 			time.Sleep(time.Second * 3)
 -			outChannel <- s
-+			time.Sleep(time.Second * 3)
 +			select {
 +			case <-ctx.Done():
 +				return
@@ -53,9 +43,6 @@ index 638af00..09b28a5 100644
 +		case val, ok := <-values:
 +			if ok {
 +				log.Printf("sink: %s", val)
-+			} else {
-+				log.Print("done")
-+				return
 +			}
 +		}
  	}
@@ -79,8 +66,7 @@ index 638af00..09b28a5 100644
  	}
  
 -	sink(outputChannel)
+-}
+\ No newline at end of file
 +	sink(ctx, outputChannel)
- }
--- 
-2.30.1 (Apple Git-130)
-
++}

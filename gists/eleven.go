@@ -16,33 +16,35 @@ func step[In any, Out any](
 		defer close(outputChannel)
 		defer close(errorChannel)
 
-		for s := range inputChannel {
+		for {
 			select {
 			case <-ctx.Done():
 				break
-			default:
-			}
+			case s, ok := <-inputChannel:
+				if ok {
+					if err := sem1.Acquire(ctx, 1); err != nil {
+						log.Printf("Failed to acquire semaphore: %v", err)
+						break
+					}
 
-			if err := sem1.Acquire(ctx, 1); err != nil {
-				log.Printf("Failed to acquire semaphore: %v", err)
-				break
-			}
+					go func(s In) {
+						defer sem1.Release(1)
+						time.Sleep(time.Second * 3)
 
-			go func(s In) {
-				defer sem1.Release(1)
-				time.Sleep(time.Second * 3)
-
-				result, err := fn(s)
-				if err != nil {
-					errorChannel <- err
+						result, err := fn(s)
+						if err != nil {
+							errorChannel <- err
+						} else {
+							outputChannel <- result
+						}
+					}(s)
 				} else {
-					outputChannel <- result
+					if err := sem1.Acquire(ctx, limit); err != nil {
+						log.Printf("Failed to acquire semaphore: %v", err)
+					}
+					return
 				}
-			}(s)
-		}
-
-		if err := sem1.Acquire(ctx, limit); err != nil {
-			log.Printf("Failed to acquire semaphore: %v", err)
+			}
 		}
 	}()
 

@@ -1,5 +1,5 @@
 diff --git a/main.go b/main.go
-index 33a1a3b..812956c 100644
+index 3888a36..8794caa 100644
 --- a/main.go
 +++ b/main.go
 @@ -2,6 +2,7 @@ package main
@@ -23,9 +23,9 @@ index 33a1a3b..812956c 100644
  		defer close(outChannel)
 +		defer close(errorChannel)
  
- 		for s := range values {
- 			time.Sleep(time.Second * 3)
-@@ -45,14 +48,16 @@ func transformToLower(ctx context.Context, values <-chan string) (<-chan string,
+ 		select {
+ 		case <-ctx.Done():
+@@ -48,14 +51,16 @@ func transformToLower(ctx context.Context, values <-chan string) (<-chan string,
  		}
  	}()
  
@@ -42,18 +42,20 @@ index 33a1a3b..812956c 100644
  		defer close(outChannel)
 +		defer close(errorChannel)
  
- 		for s := range values {
- 			time.Sleep(time.Second * 3)
-@@ -60,20 +65,29 @@ func transformToTitle(ctx context.Context, values <-chan string) (<-chan string,
- 			case <-ctx.Done():
- 				return
- 			default:
--				outChannel <- strings.ToTitle(s)
+ 		select {
+ 		case <-ctx.Done():
+@@ -64,22 +69,31 @@ func transformToTitle(ctx context.Context, values <-chan string) (<-chan string,
+ 			if ok {
+ 				log.Println("transformToTitle input: ", s)
+ 				time.Sleep(time.Second * 3)
+-				outChannel <- strings.Title(s)
 +				if s == "foo" {
 +					errorChannel <- errors.New("error in transformToTitle")
 +				} else {
 +					outChannel <- strings.ToTitle(s)
 +				}
+ 			} else {
+ 				return
  			}
  		}
  	}()
@@ -63,7 +65,7 @@ index 33a1a3b..812956c 100644
  }
  
 -func sink(ctx context.Context, values <-chan string) {
-+func sink(ctx context.Context, cancel context.CancelFunc,values <-chan string, errors <-chan error) {
++func sink(ctx context.Context, cancel context.CancelFunc, values <-chan string, errors <-chan error) {
  	for {
  		select {
  		case <-ctx.Done():
@@ -76,8 +78,8 @@ index 33a1a3b..812956c 100644
 +			}
  		case val, ok := <-values:
  			if ok {
- 				log.Println(val)
-@@ -96,28 +110,32 @@ func main() {
+ 				log.Println("Sink: ", val)
+@@ -102,28 +116,32 @@ func main() {
  	}
  
  	stage1Channels := []<-chan string{}
@@ -113,7 +115,7 @@ index 33a1a3b..812956c 100644
  }
  
  func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
-@@ -147,3 +165,31 @@ func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+@@ -153,3 +171,31 @@ func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
  
  	return out
  }

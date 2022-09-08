@@ -1,16 +1,16 @@
 diff --git a/main.go b/main.go
-index ca2f108..1e32bee 100644
+index 08d7580..c45418b 100644
 --- a/main.go
 +++ b/main.go
-@@ -33,6 +33,7 @@ func sink(ctx context.Context, values <-chan string) {
+@@ -31,6 +31,7 @@ func sink(ctx context.Context, values <-chan string) {
  			log.Print(ctx.Err().Error())
  			return
  		case val, ok := <-values:
-+			log.Print(val)
++			log.Println(val)
  			if ok {
- 				log.Println(val)
+ 				log.Printf("sink: %s", val)
  			}
-@@ -46,10 +47,10 @@ func main() {
+@@ -44,10 +45,10 @@ func main() {
  	ctx, cancel := context.WithCancel(context.Background())
  	defer cancel()
  
